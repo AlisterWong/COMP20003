@@ -157,7 +157,6 @@ int main(int argc, char **argv){
                 if (bisectorString){
                     fprintf(outFile, "%s\n", bisectorString);
                 }
-                
                 freeBisector(currentBisector);
                 if (bisectorString){
                     free(bisectorString);

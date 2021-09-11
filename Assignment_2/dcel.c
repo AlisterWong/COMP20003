@@ -73,6 +73,10 @@ struct DCEL {
 
 struct bisector {
     /* Fill in */
+    double x;
+    double y;
+    double m;
+    int byzero;
 };
 
 /* Gets a point at least distance away from the midpoint of the bisector given. */
@@ -92,20 +96,17 @@ struct bisector *getBisector(double x1, double y1, double x2, double y2);
 
 struct bisector *getBisector(double x1, double y1, double x2, double y2){
     /* Fill in */
-
-
     struct bisector *p = NULL;
 
-
-
-
-
-
-
-
-
-
-
+    p = (struct bisector *) malloc(sizeof(struct bisector) * INITIALVERTICES);
+    assert(p);
+    p -> x = (x1 + x2) / 2;
+    p -> y = (y1 + y2) / 2;
+    if (y2 == y1) {
+        p -> byzero = 1;
+    } else {
+        p -> m = (x2 - x1) / (y2 - y1);
+    }
     return p;
 }
 
@@ -126,27 +127,27 @@ char *getBisectorEquation(struct bisector *b){
     /*
 
     FILL IN
-
     */
     char *returnString = NULL;
-    if(0){
+    if((b -> byzero) == 1){
         /* Find out memory needed. */
         int stringLength = snprintf(returnString, 0, "x = %lf", 
             0.0);
         returnString = (char *) malloc(sizeof(char) * (stringLength + 1));
         assert(returnString);
-        sprintf(returnString, "x = %lf", 0.0);
+        sprintf(returnString, "x = %lf", b -> x);
     } else {
         /* Find out memory needed. */
         int stringLength = snprintf(returnString, 0, 
-            "y = %lf * (x - %lf) + %lf", 0.0, 0.0, 
-            0.0);
+            "y = %lf * (x - %lf) + %lf", b -> m, b -> x, 
+            b -> y);
         returnString = (char *) malloc(sizeof(char) * (stringLength + 1));
         assert(returnString);
         sprintf(returnString, 
-            "y = %lf * (x - %lf) + %lf", 0.0, 0.0, 
-            0.0);
+            "y = %lf * (x - %lf) + %lf", b -> m, b -> x, 
+            b -> y);
     }
+    printf("%s\n", returnString);
     return returnString;
 }
 
@@ -167,10 +168,7 @@ enum intersectType {
 
 struct intersection {
     /* Fill in */
-
-
-
-
+    double test;
 };
 
 /* 
@@ -292,10 +290,11 @@ enum intersectType intersects(struct halfEdge *he, struct bisector *b,
     double heEy = dcel->vertices[he->endVertex].y;
     
     /* Bisector x, y pair */
-    double bSx = ... ;
-    double bSy = ... ;
-    double bEx = ... ;
-    double bEy = ... ;
+    
+    double bSx = 0;
+    double bSy = 0;
+    double bEx = 0;
+    double bEy = 0;
     
     /* Fill in segment. */
     
