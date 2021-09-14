@@ -1,4 +1,4 @@
-/s* These are helpers for the graphics library, gtk. */
+/* These are helpers for the graphics library, gtk. */
 struct gtkContext;
 
 /* Call to start GTK. */

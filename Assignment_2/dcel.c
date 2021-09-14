@@ -20,6 +20,11 @@
 #define OUTSIDE (-1)
 #define NODIAMETER (-1)
 
+/* Added Definitions */
+#define INITIALBISECTORS 1
+#define INITIALINTERSECTS 2
+#define BASEREALLOC 2
+
 struct halfEdge;
 struct vertex;
 
@@ -41,6 +46,8 @@ struct split {
     struct vertex startSplitPoint;
     struct vertex endSplitPoint;
     int verticesSpecified;
+    int enforceFace;
+    int expectedFace;
 };
 
 struct halfEdge {
@@ -83,29 +90,45 @@ struct bisector {
 void getBisectorPoint(double distance, struct bisector *b, double *x, double *y);
 
 void getBisectorPoint(double distance, struct bisector *b, double *x, double *y){
-    /* Fill in */
- 
-
-
-
-
-
+    /* Check whether the line is vertical or not */
+    if (b->byzero) {
+        *x = b->x;
+        *y = distance + b->y;
+    } else {
+        *x = distance + b->x;
+        *y = b->m * distance + b->y;
+    }
 }
 
 struct bisector *getBisector(double x1, double y1, double x2, double y2);
 
+/* Gets the bisector between two coordinates */
 struct bisector *getBisector(double x1, double y1, double x2, double y2){
     /* Fill in */
     struct bisector *p = NULL;
 
-    p = (struct bisector *) malloc(sizeof(struct bisector) * INITIALVERTICES);
+    p = (struct bisector *) malloc(sizeof(struct bisector) * INITIALBISECTORS);
     assert(p);
-    p -> x = (x1 + x2) / 2;
-    p -> y = (y1 + y2) / 2;
+    p->x = (x1 + x2) / 2;
+    p->y = (y1 + y2) / 2;
     if (y2 == y1) {
-        p -> byzero = 1;
+        // Assigns byzero in bisector struct to 1 to indicate
+        // that this is a horizontal line as an equation cannot be
+        // divided by zero.
+        p->m = 0;
+        p->byzero = 1;
     } else {
-        p -> m = (x2 - x1) / (y2 - y1);
+        p->m = (x2 - x1) / (y2 - y1);
+        p->byzero = 0;
+        // Flip gradient when x2 is smaller than x1.
+        if(x2 < x1) {
+            p->m = -p->m;
+        }
+    }
+    
+    // Convert negative 0 to positive.
+    if(p->m == -0) {
+        p->m = -p->m;
     }
     return p;
 }
@@ -129,25 +152,24 @@ char *getBisectorEquation(struct bisector *b){
     FILL IN
     */
     char *returnString = NULL;
-    if((b -> byzero) == 1){
+    if((b->byzero) == 1){
         /* Find out memory needed. */
         int stringLength = snprintf(returnString, 0, "x = %lf", 
-            0.0);
+            b->x);
         returnString = (char *) malloc(sizeof(char) * (stringLength + 1));
         assert(returnString);
-        sprintf(returnString, "x = %lf", b -> x);
+        sprintf(returnString, "x = %lf", b->x);
     } else {
         /* Find out memory needed. */
         int stringLength = snprintf(returnString, 0, 
-            "y = %lf * (x - %lf) + %lf", b -> m, b -> x, 
-            b -> y);
+            "y = %lf * (x - %lf) + %lf", b->m, b->x, 
+            b->y);
         returnString = (char *) malloc(sizeof(char) * (stringLength + 1));
         assert(returnString);
         sprintf(returnString, 
-            "y = %lf * (x - %lf) + %lf", b -> m, b -> x, 
-            b -> y);
+            "y = %lf * (x - %lf) + %lf", b->m, b->x, 
+            b->y);
     }
-    printf("%s\n", returnString);
     return returnString;
 }
 
@@ -168,7 +190,12 @@ enum intersectType {
 
 struct intersection {
     /* Fill in */
-    double test;
+    int Sedge;
+    double x;
+    double y;
+    int Eedge;
+    double ex;
+    double ey;
 };
 
 /* 
@@ -290,13 +317,20 @@ enum intersectType intersects(struct halfEdge *he, struct bisector *b,
     double heEy = dcel->vertices[he->endVertex].y;
     
     /* Bisector x, y pair */
-    
-    double bSx = 0;
-    double bSy = 0;
-    double bEx = 0;
-    double bEy = 0;
+    getBisectorPoint(minLength, b, x, y);
+    double bSx = *x;
+    double bSy = *y;
+    getBisectorPoint(-minLength, b, x, y);
+    double bEx = *x;
+    double bEy = *y;
+    /*
+    printf("bSx: %lf\n", bSx);
+    printf("bSy: %lf\n", bSy);
+    printf("bEx: %lf\n", bEx);
+    printf("bEy: %lf\n", bEy);*/
     
     /* Fill in segment. */
+    
     
     /* Parametric equation parameters */
     double t1;
@@ -369,6 +403,7 @@ enum intersectType intersects(struct halfEdge *he, struct bisector *b,
     *x = heSx + t1 * (heEx - heSx);
     *y = heSy + t1 * (heEy - heSy);
     
+
     /* Make final decision - if point is on segments, parameter values will be
     between 0, the start of the line segment, and 1, the end of the line segment.
     */
@@ -391,37 +426,33 @@ char *getIntersectionString(struct intersection *intersection){
     
     
     
-    FILL IN
-
-
-
-    */
+    FILL IN*/
     if(! intersection){
       return NULL;
     }
     char *returnString = NULL;
-    if(0 <= 0){
+    if(intersection->Sedge <= intersection->Eedge){
         /* Find out memory needed. */
         int stringLength = snprintf(returnString, 0, 
             "From Edge %d (%lf, %lf) to Edge %d (%lf, %lf)", 
-            0, 0.0, 0.0,
-            0, 0.0, 0.0);
+            intersection->Sedge, intersection->x, intersection->y,
+            intersection->Eedge, intersection->ex, intersection->ey);
         returnString = (char *) malloc(sizeof(char) * (stringLength + 1));
         assert(returnString);
         sprintf(returnString, "From Edge %d (%lf, %lf) to Edge %d (%lf, %lf)", 
-            0, 0.0, 0.0,
-            0, 0.0, 0.0);
+            intersection->Sedge, intersection->x, intersection->y,
+            intersection->Eedge, intersection->ex, intersection->ey);
     } else {
         /* Find out memory needed. */
         int stringLength = snprintf(returnString, 0, 
             "From Edge %d (%lf, %lf) to Edge %d (%lf, %lf)", 
-            0, 0.0, 0.0,
-            0, 0.0, 0.0);
+            intersection->Eedge, intersection->ex, intersection->ey, 
+            intersection->Sedge, intersection->x, intersection->y);
         returnString = (char *) malloc(sizeof(char) * (stringLength + 1));
         assert(returnString);
         sprintf(returnString, "From Edge %d (%lf, %lf) to Edge %d (%lf, %lf)", 
-            0, 0.0, 0.0,
-            0, 0.0, 0.0);
+            intersection->Eedge, intersection->ex, intersection->ey, 
+            intersection->Sedge, intersection->x, intersection->y);
     }
     return returnString;
 }
@@ -646,6 +677,8 @@ struct split *readNextSplit(FILE *splitfile){
     split->startEdge = firstEdge;
     split->endEdge = secondEdge;
     split->verticesSpecified = 0;
+    split->enforceFace = 0;
+    // split->expectedFace = currentFace;
     return split;
 }
 
@@ -699,6 +732,36 @@ void applySplit(struct split *split, struct DCEL *dcel){
     int newStartEdge;
     int newEndEdge;
     
+    /* Work out what half-edges we need to use. */
+    startHE = (dcel->edges)[split->startEdge].halfEdge;
+    endHE = (dcel->edges)[split->endEdge].halfEdge;
+    
+    /* See if we have the required property before modifying DCEL. */
+    /* Uncomment to require face is present in both edges before doing split. */
+    //if(split->enforceFace){
+    //    if(! (startHE->face == split->expectedFace || 
+    //         (startHE->pair && startHE->pair->face == split->expectedFace)) || 
+    //       ! (endHE->face == split->expectedFace ||
+    //         (endHE->pair && endHE->pair->face == split->expectedFace))
+    //      ){
+    //        int sf = startHE->face;
+    //        int ef = endHE->face;
+    //        int spf = NOFACE;
+    //        int epf = NOFACE;
+    //        if(startHE->pair){
+    //            spf = startHE->pair->face;
+    //        }
+    //        if(endHE->pair){
+    //            epf = endHE->pair->face;
+    //        }
+    //        fprintf(stderr, "Warning: Split was requested with enforceFace ON, "
+    //                        "start edge faces (%d, %d) or end edge faces (%d, %d)"
+    //                        "don't have expected face %d, no split performed\n", 
+    //                sf, spf, ef, epf, split->expectedFace);
+    //        return;
+    //    }
+    //}
+    
     ensureSpaceForEdge(dcel);
     joinEdge = dcel->edgesUsed;
     dcel->edgesUsed = dcel->edgesUsed + 1;
@@ -719,24 +782,38 @@ void applySplit(struct split *split, struct DCEL *dcel){
     ensureSpaceForVertex(dcel);
     newVertexMidEnd = dcel->verticesUsed;
     dcel->verticesUsed = dcel->verticesUsed + 1;
-
-    /* Work out what half-edges we need to use. */
-    startHE = (dcel->edges)[split->startEdge].halfEdge;
-    endHE = (dcel->edges)[split->endEdge].halfEdge;
     
     /* Set midpoint of start */
     double startX = (dcel->vertices)[startHE->startVertex].x;
     double startY = (dcel->vertices)[startHE->startVertex].y;
     double endX = (dcel->vertices)[startHE->endVertex].x;
     double endY = (dcel->vertices)[startHE->endVertex].y;
+    double startMidX = (startX + endX) / 2.0;
+    double startMidY = (startY + endY) / 2.0;
+    
+    /* Reusing the start vertex means we don't have to create new half-edges for the 
+    start side of the split. */
+    int startVertexOverlap = MIDEDGE;
     if(split->verticesSpecified){
         /* See if vertex needs to be reused */
         if(vertexMatch(&(dcel->vertices)[startHE->endVertex], 
                        &split->startSplitPoint)){
+            /* Don't need to create a new vertex for endVertex, so use 
+                newVertexMidStart as newVertexMidEnd */
+            dcel->verticesUsed = dcel->verticesUsed - 1;
+            newVertexMidEnd = newVertexMidStart;
+            
             newVertexMidStart = startHE->endVertex;
+            startVertexOverlap = ENDOFEDGE;
         } else if(vertexMatch(&(dcel->vertices)[startHE->startVertex], 
                               &split->startSplitPoint)) {
+            /* Don't need to create a new vertex for endVertex, so use 
+                newVertexMidStart as newVertexMidEnd */
+            dcel->verticesUsed = dcel->verticesUsed - 1;
+            newVertexMidEnd = newVertexMidStart;
+            
             newVertexMidStart = startHE->startVertex;
+            startVertexOverlap = STARTOFEDGE;
         } else {
             (dcel->vertices)[newVertexMidStart].x = split->startSplitPoint.x;
             (dcel->vertices)[newVertexMidStart].y = split->startSplitPoint.y;
@@ -752,14 +829,28 @@ void applySplit(struct split *split, struct DCEL *dcel){
     startY = (dcel->vertices)[endHE->startVertex].y;
     endX = (dcel->vertices)[endHE->endVertex].x;
     endY = (dcel->vertices)[endHE->endVertex].y;
+    double endMidX = (startX + endX) / 2.0;
+    double endMidY = (startY + endY) / 2.0;
+    
+    /* Reusing the start vertex means we don't have to create new half-edges for the 
+    start side of the split. */
+    int endVertexOverlap = MIDEDGE;
     if(split->verticesSpecified){
         /* See if vertex needs to be reused */
         if(vertexMatch(&(dcel->vertices)[endHE->startVertex], 
                        &split->endSplitPoint)){
+            /* Don't need to create a new vertex. */
+            dcel->verticesUsed = dcel->verticesUsed - 1;
+            
             newVertexMidEnd = endHE->startVertex;
+            endVertexOverlap = STARTOFEDGE;
         } else if(vertexMatch(&(dcel->vertices)[endHE->endVertex], 
                               &split->endSplitPoint)){
+            /* Don't need to create a new vertex. */
+            dcel->verticesUsed = dcel->verticesUsed - 1;
+            
             newVertexMidEnd = endHE->endVertex;
+            endVertexOverlap = ENDOFEDGE;
         } else {
             (dcel->vertices)[newVertexMidEnd].x = split->endSplitPoint.x;
             (dcel->vertices)[newVertexMidEnd].y = split->endSplitPoint.y;
@@ -771,23 +862,43 @@ void applySplit(struct split *split, struct DCEL *dcel){
     
     
     /* Get point halfway between both midpoints */
-    double x1 = (dcel->vertices)[newVertexMidStart].x;
-    double x2 = (dcel->vertices)[newVertexMidEnd].x;
-    double y1 = (dcel->vertices)[newVertexMidStart].y;
-    double y2 = (dcel->vertices)[newVertexMidEnd].y;
+    double x1 = startMidX;
+    double x2 = endMidX;
+    double y1 = startMidY;
+    double y2 = endMidY;
     midpointX = (x1 + x2) / 2.0;
     midpointY = (y1 + y2) / 2.0;
     
     /* Work out whether on correct side. */
     struct vertex *v1 = &((dcel->vertices)[startHE->startVertex]);
     struct vertex *v2 = &((dcel->vertices)[startHE->endVertex]);
+    /* Switch this if statement to get face enforcement. */
+    //if((getRelativeDir(midpointX, midpointY, v1, v2) == OUTSIDE &&
+    //    (! split->enforceFace)) || 
+    //   (split->enforceFace && startHE->face != split->expectedFace)){
     if(getRelativeDir(midpointX, midpointY, v1, v2) == OUTSIDE){
         startHE = startHE->pair;
+        /* Apply reflections to side of half-edge if not on middle of edge */
+        if(startVertexOverlap == ENDOFEDGE){
+            startVertexOverlap = STARTOFEDGE;
+        } else if(startVertexOverlap == STARTOFEDGE){
+            startVertexOverlap = ENDOFEDGE;
+        }
     }
     v1 = &((dcel->vertices)[endHE->startVertex]);
     v2 = &((dcel->vertices)[endHE->endVertex]);
+    /* Switch this if statement to get face enforcement. */
+    //if((getRelativeDir(midpointX, midpointY, v1, v2) == OUTSIDE && 
+    //    (! split->enforceFace)) ||
+    //    (split->enforceFace && endHE->face != split->expectedFace)){
     if(getRelativeDir(midpointX, midpointY, v1, v2) == OUTSIDE){
         endHE = endHE->pair;
+        /* Apply reflections to side of half-edge if not on middle of edge */
+        if(endVertexOverlap == ENDOFEDGE){
+            endVertexOverlap = STARTOFEDGE;
+        } else if(endVertexOverlap == STARTOFEDGE){
+            endVertexOverlap = ENDOFEDGE;
+        }
     }
     
     /* Work out whether edges are adjacent. */
@@ -924,6 +1035,263 @@ void applySplit(struct split *split, struct DCEL *dcel){
     if((dcel->faces)[joinFace].he->face != joinFace){    
         (dcel->faces)[joinFace].he = startHE;
     }
+    
+    /* 20210907 - Added complexity: 
+        Due to intersection points being possible anywhere along each edge, we have a 
+        number of added complexities.
+        
+        1. The point in the starting edge split may be at the start of the starting edge.
+        2. The point in the starting edge split may be at the end of the starting edge.
+        3. The point in the end edge split may be at the start of the ending edge.
+        4. The point in the end edge split may be at the end of the starting edge.
+        
+        This can be handled two ways:
+        1. The edges can simply not be created.
+        2. The edges can be deleted.
+        
+        Of these, (2) presents the cleanest approach
+            We have two independent pairs of cases:
+            (1a) The point in the starting edge split may be at the end of the starting
+                edge:
+            
+            In this case we connect the joiningHEPair to startHEtoMid->next and back,
+                the edge is then marked NOFACE and deleted, we can verify the face 
+                pointer. We likewise connect through startHEtoMid->pair in a similar way
+                and mark it as NOFACE.
+            
+            (1b) The point in the starting edge split may be at the start of the starting
+                edge:
+            
+            In this case we connect the startHE->prev to joiningHE and back, the edge is
+                then marked NOFACE and deleted, we can verify the face pointer. We 
+                likewise connect through startHE->pair in a similar way and mark it as 
+                NOFACE, potentially verifying the face pointer.
+            
+            (2a) The point in the ending edge split may be at the start of the ending 
+                edge:
+            
+            In this case we connect the endHEtoMid->prev to joiningHEPair and back,
+                the edge is then marked NOFACE and deleted, we can verify the face 
+                pointer. We likewise connect through endHetoMid->pair in a similar way
+                and mark it as NOFACE.
+            
+            (2b) The point in the ending edge split may be at the end of the ending edge:
+            
+            In this case we connect the joiningHE to endHE->next and back, the edge is 
+                then marked NOFACE and deleted, we can verify the face pointer. We 
+                likewise connect through endHE->pair in a similar way and mark it as 
+                NOFACE.
+            
+            If both (1b) and (2b) co-occur, we have one additional case:
+                if endHE->next is startHE, we instead connect the joiningHE next and prev
+                to itself. This creates a zero area face.
+            
+            If both (1a) and (2a) co-occur, we have one additional case:
+                if endHEtoMid->next is startHEtoMid, we instead connect the 
+                joiningHE->pair next and prev to itself. This creates a zero area face.
+    */
+    if(startVertexOverlap == STARTOFEDGE && endVertexOverlap == ENDOFEDGE){
+        /* 1b and 2b co-occur */
+        struct halfEdge *nextHE = endHE->next;
+        if(nextHE == startHE){
+            nextHE = newJoinHE;
+        }
+        struct halfEdge *prevHE = startHE->prev;
+        if(prevHE == endHE){
+            prevHE = newJoinHE;
+        }
+        
+        newJoinHE->next = nextHE;
+        newJoinHE->prev = prevHE;
+        startHE->face = NOFACE;
+        endHE->face = NOFACE;
+        nextHE->prev = newJoinHE;
+        prevHE->next = newJoinHE;
+        if((dcel->faces)[joinFace].he->face == NOFACE){
+            (dcel->faces)[joinFace].he = newJoinHE;
+        }
+        
+        int deletedFace;
+        /* Handle pairs */
+        if(startHE->pair){
+            nextHE = startHE->pair->next;
+            prevHE = startHE->pair->prev;
+            nextHE->prev = prevHE;
+            prevHE->next = nextHE;
+            
+            deletedFace = startHE->pair->face;
+            startHE->pair->face = NOFACE;
+            if((dcel->faces)[deletedFace].he->face == NOFACE){
+                /* Valid to use either prevHE or nextHE */
+                (dcel->faces)[deletedFace].he = prevHE;
+            }
+        }
+        if(endHE->pair){
+            nextHE = endHE->pair->next;
+            prevHE = endHE->pair->prev;
+            nextHE->prev = prevHE;
+            prevHE->next = nextHE;
+            
+            deletedFace = endHE->pair->face;
+            endHE->pair->face = NOFACE;
+            if((dcel->faces)[deletedFace].he->face == NOFACE){
+                /* Valid to use either prevHE or nextHE */
+                (dcel->faces)[deletedFace].he = prevHE;
+            }
+        }
+    } else if(startVertexOverlap == ENDOFEDGE && endVertexOverlap == STARTOFEDGE){
+        /* 1a and 2a co-occur */
+        struct halfEdge *nextHE = newMidHEToEnd->next;
+        if(nextHE == newStartHEToMid){
+            nextHE = newJoinHEPair;
+        }
+        struct halfEdge *prevHE = newStartHEToMid->prev;
+        if(prevHE == newMidHEToEnd){
+            prevHE = newJoinHEPair;
+        }
+        
+        newJoinHEPair->next = nextHE;
+        newJoinHEPair->prev = prevHE;
+        newStartHEToMid->face = NOFACE;
+        newMidHEToEnd->face = NOFACE;
+        nextHE->prev = newJoinHEPair;
+        prevHE->next = newJoinHEPair;
+        if((dcel->faces)[newJoinHEPair->face].he->face == NOFACE){
+            (dcel->faces)[newJoinHEPair->face].he = newJoinHEPair;
+        }
+        int deletedFace;
+        /* Handle pairs */
+        if(newStartHEToMid->pair){
+            nextHE = newStartHEToMid->pair->next;
+            prevHE = newStartHEToMid->pair->prev;
+            nextHE->prev = prevHE;
+            prevHE->next = nextHE;
+            
+            deletedFace = newStartHEToMid->pair->face;
+            newStartHEToMid->pair->face = NOFACE;
+            if((dcel->faces)[deletedFace].he->face == NOFACE){
+                /* Valid to use either prevHE or nextHE */
+                (dcel->faces)[deletedFace].he = prevHE;
+            }
+        }
+        if(newMidHEToEnd->pair){
+            nextHE = newMidHEToEnd->pair->next;
+            prevHE = newMidHEToEnd->pair->prev;
+            nextHE->prev = prevHE;
+            prevHE->next = nextHE;
+            
+            deletedFace = newMidHEToEnd->pair->face;
+            newMidHEToEnd->pair->face = NOFACE;
+            if((dcel->faces)[deletedFace].he->face == NOFACE){
+                /* Valid to use either prevHE or nextHE */
+                (dcel->faces)[deletedFace].he = prevHE;
+            }
+        }
+    } else if(startVertexOverlap != MIDEDGE || endVertexOverlap != MIDEDGE){
+        if(startVertexOverlap == ENDOFEDGE){
+            /* 1a */
+            struct halfEdge *nextHE = newStartHEToMid->next;
+            struct halfEdge *prevHE = newStartHEToMid->prev;
+            int deletedFace = newStartHEToMid->face;
+            prevHE->next = nextHE;
+            nextHE->prev = prevHE;
+            newStartHEToMid->face = NOFACE;
+            if((dcel->faces)[deletedFace].he->face == NOFACE){
+                /* Valid to use either prevHE or nextHE */
+                (dcel->faces)[deletedFace].he = prevHE;
+            }
+            if(newStartHEToMid->pair){
+                deletedFace = newStartHEToMid->pair->face;
+                nextHE = newStartHEToMid->pair->next;
+                prevHE = newStartHEToMid->pair->prev;
+                newStartHEToMid->pair->face = NOFACE;
+                
+                prevHE->next = nextHE;
+                nextHE->prev = prevHE;
+                if((dcel->faces)[deletedFace].he->face == NOFACE){
+                    /* Valid to use either prevHE or nextHE */
+                    (dcel->faces)[deletedFace].he = prevHE;
+                }
+            }
+        } else if(startVertexOverlap == STARTOFEDGE){
+            /* 1b */
+            struct halfEdge *nextHE = startHE->next;
+            struct halfEdge *prevHE = startHE->prev;
+            int deletedFace = startHE->face;
+            prevHE->next = nextHE;
+            nextHE->prev = prevHE;
+            startHE->face = NOFACE;
+            if((dcel->faces)[deletedFace].he->face == NOFACE){
+                /* Valid to use either prevHE or nextHE */
+                (dcel->faces)[deletedFace].he = prevHE;
+            }
+            if(startHE->pair){
+                deletedFace = startHE->pair->face;
+                nextHE = startHE->pair->next;
+                prevHE = startHE->pair->prev;
+                startHE->pair->face = NOFACE;
+                
+                prevHE->next = nextHE;
+                nextHE->prev = prevHE;
+                if((dcel->faces)[deletedFace].he->face == NOFACE){
+                    /* Valid to use either prevHE or nextHE */
+                    (dcel->faces)[deletedFace].he = prevHE;
+                }
+            }
+        }
+        if(endVertexOverlap == STARTOFEDGE){
+            /* 2a */
+            struct halfEdge *nextHE = newMidHEToEnd->next;
+            struct halfEdge *prevHE = newMidHEToEnd->prev;
+            int deletedFace = newMidHEToEnd->face;
+            prevHE->next = nextHE;
+            nextHE->prev = prevHE;
+            newMidHEToEnd->face = NOFACE;
+            if((dcel->faces)[deletedFace].he->face == NOFACE){
+                /* Valid to use either prevHE or nextHE */
+                (dcel->faces)[deletedFace].he = prevHE;
+            }
+            if(newMidHEToEnd->pair){
+                deletedFace = newMidHEToEnd->pair->face;
+                nextHE = newMidHEToEnd->pair->next;
+                prevHE = newMidHEToEnd->pair->prev;
+                newMidHEToEnd->pair->face = NOFACE;
+                
+                prevHE->next = nextHE;
+                nextHE->prev = prevHE;
+                if((dcel->faces)[deletedFace].he->face == NOFACE){
+                    /* Valid to use either prevHE or nextHE */
+                    (dcel->faces)[deletedFace].he = prevHE;
+                }
+            }
+        } else if(endVertexOverlap == ENDOFEDGE){
+            /* 2b */
+            struct halfEdge *nextHE = endHE->next;
+            struct halfEdge *prevHE = endHE->prev;
+            int deletedFace = endHE->face;
+            prevHE->next = nextHE;
+            nextHE->prev = prevHE;
+            endHE->face = NOFACE;
+            if((dcel->faces)[deletedFace].he->face == NOFACE){
+                /* Valid to use either prevHE or nextHE */
+                (dcel->faces)[deletedFace].he = prevHE;
+            }
+            if(endHE->pair){
+                deletedFace = endHE->pair->face;
+                nextHE = endHE->pair->next;
+                prevHE = endHE->pair->prev;
+                endHE->pair->face = NOFACE;
+                
+                prevHE->next = nextHE;
+                nextHE->prev = prevHE;
+                if((dcel->faces)[deletedFace].he->face == NOFACE){
+                    /* Valid to use either prevHE or nextHE */
+                    (dcel->faces)[deletedFace].he = prevHE;
+                }
+            }
+        }
+    }
+    
 }
 
 void freeDCEL(struct DCEL *dcel){
@@ -1148,47 +1516,104 @@ struct intersection *getIntersection(struct bisector *b, struct DCEL *dcel, int 
     double minLength){
     /* 
 
+    
+    FILL IN*/
+    struct intersection *intersection = NULL;
+    enum intersectType doesIntersect;
+    int intersected = 0;
 
-    FILL IN 
+    intersection = (struct intersection*) malloc(sizeof
+    (struct intersection) * INITIALINTERSECTS);
+    assert(intersection);
 
+    struct halfEdge *start = (dcel->faces)[face].he;
+    int first = 1;
+    double *x;
+    double *y;
 
+    x = (double *) malloc((sizeof(double) * INITIALINTERSECTS));
+    y = (double *) malloc((sizeof(double) * INITIALINTERSECTS));
+    assert(x);
+    assert(y);
+    *x = 0;
+    *y = 0;
+    struct halfEdge *current = start;
+    while(start != current || first){
+         doesIntersect = intersects(current, b, dcel, minLength, x, y);
+        
+        // Whichever side of the bisector intersects with a part of the DCEL first
+        if(doesIntersect != DOESNT_INTERSECT && !intersected) {
+            intersection->Sedge = current->edge;
+            intersection->x = *x;
+            intersection->y = *y;
+            intersected = 1;
+        // Assigning the second bisector intersection with the DCEL to a different part of
+        // the intersect struct.
+        } else if (doesIntersect != DOESNT_INTERSECT && intersected) {
+            intersection->Eedge = current->edge;
+            intersection->ex = *x;
+            intersection->ey = *y;
+        }
 
-
-
-
-    */
-    return NULL;
+        current = current->next;
+        first = 0;
+    }
+    
+    free(x);
+    free(y);
+    return intersection;
 }
 
 double getDiameter(struct DCEL *dcel, int faceIndex){
     /* 
-    
-    
-    
-    
     Fill in
-    
-    
-    
-    
     */
-
-
+   
 
     return NODIAMETER;
 }
 
 void incrementalVoronoi(struct DCEL *dcel, struct watchtowerStruct *wt){
     /* 
-    
-    
-    
-    
-    Fill in
-    
-    
-    
-    
-    */
+    Fill in*/
+    struct bisector *b = NULL;
+    struct intersect *intersection = NULL;
 
+    int first = 1;
+    wt->face = dcel->facesUsed-1;
+    (dcel->faces)[dcel->facesUsed-1].wt = wt;
+
+    if(first){
+        first = 0;
+        return;
+    }
+
+    // Assigning watchtower values for ease of access
+    double prevWtx = (dcel->faces)[dcel->facesUsed-2].wt->x;
+    double prevWty = (dcel->faces)[dcel->facesUsed-2].wt->y;
+    double currWtx = (dcel->faces)[dcel->facesUsed-1].wt->x;
+    double currWty = (dcel->faces)[dcel->facesUsed-1].wt->y;
+
+    b = getBisector(prevWtx, prevWty, currWtx, currWty);
+    printf("-----------------++++%lf+++++--------\n", prevWtx);
+    printf("-----------------++++%lf+++++--------\n", currWtx);
+    //if(inFace(dcel, currWtx, currWty, dcel->facesUsed-1)) {
+    intersection = getIntersection(b, dcel, dcel->facesUsed, DEFAULTMINLENGTH);
+
+
+
+    freeBisector(b);
+    freeIntersection(intersection);
+    
+    // Check if 
+    
+
+    
+    /*
+    printf("-------------%d-----------", (dcel->faces)[dcel->facesUsed].wt->face);
+    printf("---------------%d-1---------------", (dcel->faces)[dcel->facesUsed-1].wt->face);
+    */
 }
+
+/* Warning: This code is less tested so may have more bugs */
+

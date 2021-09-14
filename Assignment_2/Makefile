@@ -24,3 +24,5 @@ output.o: output.h watchtowerStruct.h dcel.h output.c
     
 gtk.o: gtk.h gtk.c
 	gcc -g `pkg-config --cflags gtk+-3.0` -o gtk.o -Wall -c gtk.c `pkg-config --cflags igraph`    
+clean:
+	rm voronoi2.exe dcel.o output.o problem.o readData.o voronoi2.o

@@ -4,6 +4,7 @@ struct face;
 struct split;
 struct bisector;
 struct intersection;
+struct vertex;
 
 /* Reads the polygon from the given file. */
 struct DCEL *readPolygonFile(char *polygonfileName);
@@ -91,3 +92,12 @@ int DCELhasEdge(struct DCEL *dcel, int edge);
 
 /* Check if the DCEL has a pair for the given edge. */
 int DCELhasEdgePair(struct DCEL *dcel, int edge);
+
+
+/* 20210907 - Constants for removing zero length edges during splits. */
+#define STARTOFEDGE (-1)
+#define MIDEDGE 0
+#define ENDOFEDGE (1)
+
+/* Returns 1 if vertices are sufficiently close, 0 otherwise. */
+int vertexMatch(struct vertex *v1, struct vertex *v2);
