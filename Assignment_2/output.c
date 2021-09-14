@@ -167,10 +167,27 @@ void outputResultDiameterSorted(char *outputfileName, struct watchtowerStruct **
     */
     FILE *outputfile = fopen(outputfileName, "w");
     assert(outputfile);
-    int i;
+    int i, j;
+    double temp;
+    int tempface;
     
     /* Must have DCEL. */
     assert(dcel);
+
+    for(i = 1; i < wtCount; i++) {
+        double tempdia = getDiameter(dcel, wts[i]->face);
+        temp = tempdia;
+        tempface = wts[i]->face;
+        j = i - 1;
+
+        while(j >= 0 && getDiameter(dcel, wts[j]->face) > temp) {
+            wts[j + 1]->face = wts[j]->face;
+            j = j-1;
+        }
+        wts[j + 1]->face = tempface;
+    }
+
+
     
     for(i = 0; i < wtCount; i++){
         if(! wts[i]){

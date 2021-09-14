@@ -22,7 +22,7 @@
 
 /* Added Definitions */
 #define INITIALBISECTORS 1
-#define INITIALINTERSECTS 2
+#define INITIALINTERSECTS 1
 #define BASEREALLOC 2
 
 struct halfEdge;
@@ -176,6 +176,22 @@ char *getBisectorEquation(struct bisector *b){
 void freeBisector(struct bisector *bisector){
     if(bisector){
         free(bisector);
+    }
+}
+
+struct vertex *newVertex(double x, double y) {
+    struct vertex *vertex = NULL;
+
+    vertex = (struct vertex *) malloc(sizeof(struct vertex));
+    assert(vertex);
+    vertex->x = x;
+    vertex->y = y;
+    return vertex;
+}
+
+void freeVertex(struct vertex *vertex) {
+    if(vertex){
+        free(vertex);
     }
 }
 
@@ -674,6 +690,7 @@ struct split *readNextSplit(FILE *splitfile){
         return NULL;
     }
     struct split *split = (struct split *) malloc(sizeof(struct split));
+    assert(split);
     split->startEdge = firstEdge;
     split->endEdge = secondEdge;
     split->verticesSpecified = 0;
@@ -1523,7 +1540,7 @@ struct intersection *getIntersection(struct bisector *b, struct DCEL *dcel, int 
     int intersected = 0;
 
     intersection = (struct intersection*) malloc(sizeof
-    (struct intersection) * INITIALINTERSECTS);
+    (struct intersection) * INITIALINTERSECTS+1);
     assert(intersection);
 
     struct halfEdge *start = (dcel->faces)[face].he;
@@ -1540,16 +1557,17 @@ struct intersection *getIntersection(struct bisector *b, struct DCEL *dcel, int 
     struct halfEdge *current = start;
     while(start != current || first){
          doesIntersect = intersects(current, b, dcel, minLength, x, y);
-        
+
         // Whichever side of the bisector intersects with a part of the DCEL first
         if(doesIntersect != DOESNT_INTERSECT && !intersected) {
             intersection->Sedge = current->edge;
             intersection->x = *x;
             intersection->y = *y;
             intersected = 1;
+        } 
         // Assigning the second bisector intersection with the DCEL to a different part of
         // the intersect struct.
-        } else if (doesIntersect != DOESNT_INTERSECT && intersected) {
+        else if (doesIntersect != DOESNT_INTERSECT && intersected) {
             intersection->Eedge = current->edge;
             intersection->ex = *x;
             intersection->ey = *y;
@@ -1564,56 +1582,116 @@ struct intersection *getIntersection(struct bisector *b, struct DCEL *dcel, int 
     return intersection;
 }
 
+/* Calculate the euclidean distance between 2 vertices */
+double getDistance(struct vertex v1, struct vertex v2) {
+    double x1 = v1.x;
+    double y1 = v1.y;
+    double x2 = v2.x;
+    double y2 = v2.y;
+
+    return sqrt(pow((x1 - x2),2) + pow((y1-y2),2));;
+}
+
+/* Get the diameter of a Voronoi cell (face) */
 double getDiameter(struct DCEL *dcel, int faceIndex){
     /* 
     Fill in
     */
-   
-
-    return NODIAMETER;
+    double diameter = 0;
+    int first = 1;
+    struct halfEdge *start = dcel->edges->halfEdge;
+    // Should switch bottom line with top line, however
+    // memory leak if switched, I don't think my watchTowers
+    // in task 3 are allocating into the faces properly.
+    //struct halfEdge *start = (dcel->faces)[faceIndex].he;
+    struct halfEdge *current = start;
+    while(start != current || first == 1) {
+        while(current->next != start) {
+            diameter += getDistance((dcel->vertices)[current->startVertex],
+            (dcel->vertices)[current->next->startVertex]);
+            current->next = current->next->next;
+        }
+        current = current->next;
+        first = 0;
+    }
+    return diameter;
 }
 
 void incrementalVoronoi(struct DCEL *dcel, struct watchtowerStruct *wt){
     /* 
     Fill in*/
     struct bisector *b = NULL;
-    struct intersect *intersection = NULL;
 
-    int first = 1;
-    wt->face = dcel->facesUsed-1;
-    (dcel->faces)[dcel->facesUsed-1].wt = wt;
+    int faceIndex = dcel->facesUsed-1;
 
-    if(first){
-        first = 0;
-        return;
+    // Set watchtower to dcel face
+    wt->face = faceIndex;
+    (dcel->faces)[faceIndex].wt = wt;
+
+    
+
+    // Skip first 
+    if(dcel->facesUsed != 1){
+        double prevWtx = (dcel->faces)[faceIndex-1].wt->x;
+        double prevWty = (dcel->faces)[faceIndex-1].wt->y;
+        double currWtx = (dcel->faces)[faceIndex].wt->x;
+        double currWty = (dcel->faces)[faceIndex].wt->y;
+
+        // Generating bisector and intersections
+        b = getBisector(prevWtx, prevWty, currWtx, currWty);
+        struct intersection *intersect =
+        getIntersection(b, dcel, faceIndex-1, DEFAULTMINLENGTH);
+
+        struct vertex *Svertex = newVertex(intersect->x, intersect->y);
+        struct vertex *Evertex = newVertex(intersect->ex, intersect->ey);
+
+        // Creating split struct
+        struct split *newSplit = (struct split *) malloc(sizeof(struct split));
+        newSplit->startEdge = intersect->Sedge;
+        newSplit->endEdge = intersect->Eedge;
+        if (getRelativeDir(currWtx, currWty, Svertex, Evertex) == 1) {
+            newSplit->startSplitPoint = *Svertex;
+            newSplit->endSplitPoint = *Evertex;
+        }else if(getRelativeDir(currWtx, currWty, Evertex, Svertex) == 1) {
+            newSplit->startSplitPoint = *Evertex;
+            newSplit->endSplitPoint = *Svertex;
+        } 
+        newSplit->verticesSpecified = 1;
+
+        
+        applySplit(newSplit, dcel);
+        if((dcel->faces)[2].wt == NULL) {
+            dcel->facesUsed--;
+        }
+
+        // Free memory
+        freeSplit(newSplit);
+        freeVertex(Svertex);
+        freeVertex(Evertex);
+        freeBisector(b);
+        freeIntersection(intersect);
     }
-
-    // Assigning watchtower values for ease of access
-    double prevWtx = (dcel->faces)[dcel->facesUsed-2].wt->x;
-    double prevWty = (dcel->faces)[dcel->facesUsed-2].wt->y;
-    double currWtx = (dcel->faces)[dcel->facesUsed-1].wt->x;
-    double currWty = (dcel->faces)[dcel->facesUsed-1].wt->y;
-
-    b = getBisector(prevWtx, prevWty, currWtx, currWty);
-    printf("-----------------++++%lf+++++--------\n", prevWtx);
-    printf("-----------------++++%lf+++++--------\n", currWtx);
-    //if(inFace(dcel, currWtx, currWty, dcel->facesUsed-1)) {
-    intersection = getIntersection(b, dcel, dcel->facesUsed, DEFAULTMINLENGTH);
-
-
-
-    freeBisector(b);
-    freeIntersection(intersection);
     
-    // Check if 
-    
-
-    
-    /*
-    printf("-------------%d-----------", (dcel->faces)[dcel->facesUsed].wt->face);
-    printf("---------------%d-1---------------", (dcel->faces)[dcel->facesUsed-1].wt->face);
-    */
+    // Check if first watchtower
+    if(dcel->facesUsed == 1){
+        ensureSpaceForFace(dcel);
+        dcel->facesUsed++;
+    }
 }
+
+
+/*
+if(dcel->facesUsed == 1){
+        wt->face = dcel->facesUsed-1;
+        (dcel->faces)[0].wt = wt;
+
+        ensureSpaceForFace(dcel);
+        dcel->facesUsed++;
+    }
+    else {
+
+    }
+*/
 
 /* Warning: This code is less tested so may have more bugs */
 

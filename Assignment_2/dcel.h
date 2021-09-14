@@ -24,6 +24,12 @@ char *getBisectorEquation(struct bisector *b);
 /* Frees the given bisector. */
 void freeBisector(struct bisector *bisector);
 
+/* Creates a new Vertex with given coordinates */
+struct vertex *newVertex(double x, double y);
+
+/* Frees the given vertex */
+void freeVertex(struct vertex *vertex);
+
 /* Representation of no face */
 #define NOFACE (-1)
 

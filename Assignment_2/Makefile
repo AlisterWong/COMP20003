@@ -23,6 +23,13 @@ output.o: output.h watchtowerStruct.h dcel.h output.c
 	gcc -Wall -o output.o -c output.c -g
     
 gtk.o: gtk.h gtk.c
-	gcc -g `pkg-config --cflags gtk+-3.0` -o gtk.o -Wall -c gtk.c `pkg-config --cflags igraph`    
+	gcc -g `pkg-config --cflags gtk+-3.0` -o gtk.o -Wall -c gtk.c `pkg-config --cflags igraph` 
+
+valgrind:
+	valgrind --leak-check=full --track-origins=yes ./voronoi2 3 dataset_3.csv polygon_square.txt 3-outfile.txt
+task3gui:
+	./voronoi2-gui 3 dataset_3.csv polygon_square.txt 3-outfile.txt
+task4:
+	./voronoi2 4 dataset_3.csv polygon_square.txt 4-outfile.txt
 clean:
-	rm voronoi2.exe dcel.o output.o problem.o readData.o voronoi2.o
+	rm voronoi2.exe dcel.o output.o problem.o readData.o voronoi2.o gtk.o
